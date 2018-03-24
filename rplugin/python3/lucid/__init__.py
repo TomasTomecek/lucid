@@ -67,6 +67,12 @@ class BuildahBackend(Backend):
         return result
 
 
+class DisplayedObject:
+    def __init__(self, data, display):
+        self.data = data
+        self.display = display
+
+
 class DockerBackend(Backend):
     def __init__(self):
         super(DockerBackend, self).__init__()
@@ -83,15 +89,16 @@ class DockerBackend(Backend):
                 n = i["RepoTags"][0]
             except (IndexError, KeyError, TypeError):
                 n = ""
-            result.append(templ.format(obj_type="image", backend_name="docker",
-                                       id_short=i["Id"][:12], name=n, misc=""))
+            display = templ.format(obj_type="image", backend_name="docker",
+                                   id_short=i["Id"][:12], name=n, misc="")
+            result.append(DisplayedObject(i, display))
         return result
 
 
 # stateful?
 class Store:
     def __init__(self):
-        self.items = []
+        self.displayed_items = None
         self.b = BuildahBackend()
         self.d = DockerBackend()
 
@@ -103,11 +110,16 @@ class Store:
         #  4. save the mapping
         #  5. return
         # self.items[:] = self.b.get_list()
-        self.items[:] = self.d.get_list()
-        return self.items
+        self.displayed_items = self.d.get_list()
+        return [x.display for x in self.displayed_items]
 
-    def delete(self, idx):
-        log.info("would delete %r", self.items[idx])
+    def delete(self, start_idx, end_idx=None):
+        log.info("delete %s - %s", start_idx, end_idx)
+        if end_idx:
+            for i in self.displayed_items[start_idx:end_idx]:
+                self.d.d.remove_image(i.data)
+        else:
+            self.d.d.remove_image(self.displayed_items[start_idx].data)
 
 
 def set_logging(
@@ -144,6 +156,11 @@ def set_logging(
     return logger
 
 
+def p2i(p):
+    """ position to index """
+    return p - 1
+
+
 @neovim.plugin
 class ContainerUI(object):
     def __init__(self, vim):
@@ -152,22 +169,30 @@ class ContainerUI(object):
         self.s = Store()
 
     def init_buffer(self):
-        self.v.command(":new")
+        self.v.command(":tabnew")
+        self.v.command(":call LucidInitMapping()")
         buf = self.v.current.buffer
         buf.options["swapfile"] = False
         buf.options["buftype"] = "nofile"
         buf.name = "Container Interface"
-        buf[:] = self.s.get_list()
+        self.refresh()
+
+    def refresh(self):
+        self.v.current.buffer[:] = self.s.get_list()
 
     # this needs to be sync=True, otherwise the position is wrong
     @neovim.function('_cui_delete', sync=True)
     def delete(self, args):
-        row = self.v.current.window.row
-        idx = row - 1
-        log.debug("delete: row = %s, idx = %s", row, idx)
-        self.s.delete(idx)
-        # TODO: update interface
-        # self.vim.current.line = str(args) + " " + str(lineno)
+        log.debug("delete(args = %s)", args)
+        if args:
+            # delete(args=[[3, 1, 4, 2147483647]])
+            a = args[0]
+            self.s.delete(p2i(a[0]), end_idx=p2i(a[2]))
+        else:
+            row = self.v.current.window.cursor[0]
+            idx = p2i(row)
+            self.s.delete(idx)
+        self.refresh()
 
     # TODO: make async
     @neovim.function('_cui_init', sync=True)
