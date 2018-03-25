@@ -2,7 +2,6 @@ import logging
 import json
 import os
 import subprocess
-import pprint
 
 import neovim
 import docker
@@ -95,7 +94,6 @@ class DockerBackend(Backend):
         return result
 
 
-# stateful?
 class Store:
     def __init__(self):
         self.displayed_items = None
@@ -171,10 +169,27 @@ class ContainerUI(object):
     def init_buffer(self):
         self.v.command(":tabnew")
         self.v.command(":call LucidInitMapping()")
+
         buf = self.v.current.buffer
+
+        buf.name = "Lucid Container Interface"
         buf.options["swapfile"] = False
         buf.options["buftype"] = "nofile"
-        buf.name = "Container Interface"
+        buf.options['modeline'] = False
+        buf.options['filetype'] = 'lucid'
+
+        win = self.v.current.window
+
+        win.options["wrap"] = False
+        win.options["cursorline"] = True
+        win.options["cursorcolumn"] = False
+        win.options["concealcursor"] = "nvic"
+        win.options["conceallevel"] = 3
+
+        # FIXME: figure out how to disable insert mode
+        # FIXME: disable horizontal navigation
+        # FIXME: hide cursor, show only cursorline
+
         self.refresh()
 
     def refresh(self):
@@ -193,6 +208,12 @@ class ContainerUI(object):
             idx = p2i(row)
             self.s.delete(idx)
         self.refresh()
+
+    # this needs to be sync=True, otherwise the position is wrong
+    @neovim.function('_cui_inspect', sync=True)
+    def inspect(self, args):
+        self.v.command(":tabnew")
+        # TODO: implement
 
     # TODO: make async
     @neovim.function('_cui_init', sync=True)

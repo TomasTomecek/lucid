@@ -14,4 +14,7 @@ function! LucidInitMapping()
     "08:38:04.473 __init__.py       DEBUG  delete(args = [[1, 1, 1, 2147483647]])
     vnoremap <buffer> d :call _cui_delete(VisualSelection())<CR>'
     nnoremap <buffer> dd :silent call _cui_delete()<CR>'
+    nnoremap <buffer> <CR> :silent call _cui_inspect()<CR>'
 endfunction
+
+nnoremap <silent> <Leader>l :call _cui_init()<CR>
