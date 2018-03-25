@@ -10,9 +10,12 @@ import docker
 from lucid.util import humanize_bytes, humanize_time
 
 
+ISO_DATETIME_PARSE_STRING = "%Y-%m-%dT%H:%M:%SZ"
+
+
 class Backend:
     name = ""
-    
+
     def __init__(self):
         pass
 
@@ -143,6 +146,7 @@ class DockerImage(Resource):
 
 class DockerBackend(Backend):
     name = "docker"
+
     def __init__(self):
         super(DockerBackend, self).__init__()
         self.d = docker.APIClient()
@@ -156,7 +160,40 @@ class DockerBackend(Backend):
         return result
 
 
+class OpenShiftPod(Resource):
+    def __init__(self, backend, metadata):
+        super(OpenShiftPod, self).__init__(backend)
+        self.m = metadata
+        self.date_changed = None
+
+    @property
+    def last_changed(self):
+        if self.date_changed is None:
+            t = self.m["status"]["conditions"][0]["lastTransitionTime"]
+            self.date_changed = datetime.strptime(t, ISO_DATETIME_PARSE_STRING)
+        return self.date_changed
+
+    @property
+    def name(self):
+        return self.m["metadata"]["name"]
+
+    @property
+    def resource_type(self):
+        return "pod"
+
+    @property
+    def status(self):
+        return self.m["status"]["phase"]
+
+
 class OpenShiftBackend(Backend):
     name = "openshift"
+
     def get_list(self):
-        return []
+        cmd = ["oc", "-o", "json", "get", "pods", "--all-namespaces"]
+        out = subprocess.check_output(cmd)
+        j = json.loads(out)
+        response = []
+        for item in j["items"]:
+            response.append(OpenShiftPod(self, item))
+        return response

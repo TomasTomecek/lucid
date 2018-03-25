@@ -54,6 +54,7 @@ class Lucid(object):
         set_logging()
         self.v = vim
         self.app = App()
+        self.width = 0
 
     def init_buffer(self):
         self.v.command(":tabnew")
@@ -68,6 +69,7 @@ class Lucid(object):
         buf.options['filetype'] = 'lucid'
 
         win = self.v.current.window
+        self.width = win.width
 
         win.options["wrap"] = False
         win.options["cursorline"] = True
@@ -82,7 +84,7 @@ class Lucid(object):
         self.refresh()
 
     def refresh(self):
-        self.v.current.buffer[:] = self.app.populate_list()
+        self.v.current.buffer[:] = self.app.populate_list(self.width)
 
     # this needs to be sync=True, otherwise the position is wrong
     @neovim.function('_cui_delete', sync=True)

@@ -16,7 +16,7 @@ class App:
             PodmanBackend(),
         ]
 
-    def populate_list(self):
+    def populate_list(self, display_width):
         """ load all resources from backends"""
         # TODO: implement filtering, e.g. `:filter backend=openshift resource=pod`
         li = []
@@ -25,7 +25,7 @@ class App:
 
         # TODO: implement sorting
         self.displayed_resources[:] = li
-        return [x.to_str(80) for x in self.displayed_resources]
+        return [x.to_str(display_width) for x in self.displayed_resources]
 
     def delete(self, start_idx, end_idx=None):
         log.info("delete %s - %s", start_idx, end_idx)
