@@ -1,123 +1,12 @@
 import logging
-import json
 import os
-import subprocess
+
+from lucid.app import App
 
 import neovim
-import docker
 
 
-log = logging.getLogger("cui")
-
-
-class Backend:
-    def __init__(self):
-        pass
-
-    def get_list(self):
-        pass
-
-    def delete(self, obj):
-        pass
-
-
-# stateless?
-class BuildahBackend(Backend):
-    def __init__(self):
-        super(BuildahBackend, self).__init__()
-
-    def get_list(self):
-        # {
-        #     "id": "c24863c7a80057d71b5dbe1e1cee54414b715e2233b3a79d721f18d3ab2ead3e",
-        #     "names": [
-        #         "docker.io/library/container-conductor-fedora-26:0.9.3rc0"
-        #     ]
-        # },
-        c = ["sudo", "buildah", "images", "--json"]
-        images_s = subprocess.check_output(c)
-        images = json.loads(images_s)
-
-        # {
-        #     "id": "80c68cabb8da5dfa1a130c31c582a647ae9a14199d4ecb44df43947b9654f824",
-        #     "builder": true,
-        #     "imageid": "5b48cb988991bbeda9001fcde7d2c5d06b183f67cfe50b62f3f97d98c4f54a08",
-        #     "imagename": "docker.io/library/weechat-container-conductor:latest",
-        #     "containername": "weechat-container_conductor"
-        # },
-        c = ["sudo", "buildah", "containers", "--json"]
-        containers_s = subprocess.check_output(c)
-        containers = json.loads(containers_s)
-
-        # TODO: figure out displaying: raw data -> pretty data
-        templ = "{obj_type:12} {backend_name:12} {id_short:14} {name:32} {misc}"
-        result = []
-        for i in images:
-            try:
-                n = i["names"][0]
-            except (IndexError, KeyError, TypeError):
-                n = ""
-            result.append(templ.format(obj_type="image", backend_name="buildah",
-                                       id_short=i["id"][:12], name=n, misc=""))
-        for c in containers:
-            result.append(templ.format(obj_type="container", backend_name="buildah",
-                                       id_short=c["id"][:12], name=c["containername"],
-                                       misc=c["containername"]))
-
-        return result
-
-
-class DisplayedObject:
-    def __init__(self, data, display):
-        self.data = data
-        self.display = display
-
-
-class DockerBackend(Backend):
-    def __init__(self):
-        super(DockerBackend, self).__init__()
-        self.d = docker.APIClient()
-
-    def get_list(self):
-        images = self.d.images()
-
-        # TODO: figure out displaying: raw data -> pretty data
-        templ = "{obj_type:12} {backend_name:12} {id_short:14} {name:32} {misc}"
-        result = []
-        for i in images:
-            try:
-                n = i["RepoTags"][0]
-            except (IndexError, KeyError, TypeError):
-                n = ""
-            display = templ.format(obj_type="image", backend_name="docker",
-                                   id_short=i["Id"][:12], name=n, misc="")
-            result.append(DisplayedObject(i, display))
-        return result
-
-
-class Store:
-    def __init__(self):
-        self.displayed_items = None
-        self.b = BuildahBackend()
-        self.d = DockerBackend()
-
-    def get_list(self):
-        # workflow:
-        #  1. get backend items
-        #  2. sort them
-        #  3. render them
-        #  4. save the mapping
-        #  5. return
-        # self.items[:] = self.b.get_list()
-        self.displayed_items = self.d.get_list()
-        return [x.display for x in self.displayed_items]
-
-    def delete(self, start_idx, end_idx=None):
-        log.info("delete %s - %s", start_idx, end_idx)
-        if end_idx:
-            for i in self.displayed_items[start_idx:end_idx]:
-                self.d.d.remove_image(i.data)
-        else:
-            self.d.d.remove_image(self.displayed_items[start_idx].data)
+log = logging.getLogger("lucid")
 
 
 def set_logging(
@@ -160,11 +49,11 @@ def p2i(p):
 
 
 @neovim.plugin
-class ContainerUI(object):
+class Lucid(object):
     def __init__(self, vim):
         set_logging()
         self.v = vim
-        self.s = Store()
+        self.app = App()
 
     def init_buffer(self):
         self.v.command(":tabnew")
@@ -193,7 +82,7 @@ class ContainerUI(object):
         self.refresh()
 
     def refresh(self):
-        self.v.current.buffer[:] = self.s.get_list()
+        self.v.current.buffer[:] = self.app.populate_list()
 
     # this needs to be sync=True, otherwise the position is wrong
     @neovim.function('_cui_delete', sync=True)
