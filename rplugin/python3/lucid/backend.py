@@ -2,6 +2,7 @@
 all the backends
 """
 import json
+import logging
 import subprocess
 from datetime import datetime
 
@@ -11,6 +12,17 @@ from lucid.util import humanize_bytes, humanize_time
 
 
 ISO_DATETIME_PARSE_STRING = "%Y-%m-%dT%H:%M:%SZ"
+ISO_DATETIME_PARSE_STRING_WITH_MI = "%Y-%m-%dT%H:%M:%S.%fZ"
+
+log = logging.getLogger("lucid")
+
+
+def get_command_output(cmd):
+    try:
+        return subprocess.check_output(cmd)
+    except subprocess.CalledProcessError as ex:
+        log.error("out = %s, err = %s, rc = %s", ex.output, ex.stderr, ex.returncode)
+        raise
 
 
 class Backend:
@@ -24,51 +36,6 @@ class Backend:
 
     def delete(self, obj):
         pass
-
-
-# stateless?
-class BuildahBackend(Backend):
-    def __init__(self):
-        super(BuildahBackend, self).__init__()
-
-    def get_list(self):
-        # {
-        #     "id": "c24863c7a80057d71b5dbe1e1cee54414b715e2233b3a79d721f18d3ab2ead3e",
-        #     "names": [
-        #         "docker.io/library/container-conductor-fedora-26:0.9.3rc0"
-        #     ]
-        # },
-        c = ["sudo", "buildah", "images", "--json"]
-        images_s = subprocess.check_output(c)
-        images = json.loads(images_s)
-
-        # {
-        #     "id": "80c68cabb8da5dfa1a130c31c582a647ae9a14199d4ecb44df43947b9654f824",
-        #     "builder": true,
-        #     "imageid": "5b48cb988991bbeda9001fcde7d2c5d06b183f67cfe50b62f3f97d98c4f54a08",
-        #     "imagename": "docker.io/library/weechat-container-conductor:latest",
-        #     "containername": "weechat-container_conductor"
-        # },
-        c = ["sudo", "buildah", "containers", "--json"]
-        containers_s = subprocess.check_output(c)
-        containers = json.loads(containers_s)
-
-        # TODO: figure out displaying: raw data -> pretty data
-        templ = "{obj_type:12} {backend_name:12} {id_short:14} {name:32} {misc}"
-        result = []
-        for i in images:
-            try:
-                n = i["names"][0]
-            except (IndexError, KeyError, TypeError):
-                n = ""
-            result.append(templ.format(obj_type="image", backend_name="buildah",
-                                       id_short=i["id"][:12], name=n, misc=""))
-        for c in containers:
-            result.append(templ.format(obj_type="container", backend_name="buildah",
-                                       id_short=c["id"][:12], name=c["containername"],
-                                       misc=c["containername"]))
-
-        return result
 
 
 class Resource:
@@ -110,10 +77,56 @@ class Resource:
         return template.format(**d)
 
 
+class PodmanImage(Resource):
+    def __init__(self, backend, metadata):
+        super(PodmanImage, self).__init__(backend)
+        self.m = metadata
+        self.date_created = None
+
+    @property
+    def last_changed(self):
+        if self.date_created is None:
+            t = self.m["created"][:-4]
+            self.date_created = datetime.strptime(
+                t + "Z", ISO_DATETIME_PARSE_STRING_WITH_MI)
+        return self.date_created
+
+    @property
+    def name(self):
+        try:
+            return self.m["names"][0]
+        except (IndexError, KeyError, TypeError):
+            return self.m["Id"][:16]
+
+    @property
+    def resource_type(self):
+        return "image"
+
+    @property
+    def status(self):
+        return humanize_bytes(self.m["size"])
+
+
 class PodmanBackend(Backend):
     name = "podman"
+
     def get_list(self):
-        return []
+        # {
+        #     "id": "9110ae7f579f35ee0c3938696f23fe0f5fbe641738ea52eb83c2df7e9995fa17",
+        #     "names": [
+        #         "docker.io/library/fedora:27"
+        #     ],
+        #     "digest": "sha256:8f97ccd41222754a70204fec8faa07504f790454a22c888bd92f0c52463e0f3d",
+        #     "created": "2018-03-07T20:51:34.488688562Z",
+        #     "size": 246136632
+        # }
+        c = ["sudo", "podman", "images", "--format", "json"]
+        images_s = subprocess.check_output(c)
+        images = json.loads(images_s)
+        response = []
+        for i in images:
+            response.append(PodmanImage(self, i))
+        return response
 
 
 class DockerImage(Resource):

@@ -10,7 +10,7 @@ log = logging.getLogger("lucid")
 
 
 def set_logging(
-        logger_name="cui",
+        logger_name="lucid",
         level=logging.DEBUG,
         format='%(asctime)s.%(msecs).03d %(filename)-17s %(levelname)-6s %(message)s',
         date_format='%H:%M:%S'):
@@ -19,8 +19,6 @@ def set_logging(
 
     :param logger_name: str, name of the logger
     :param level: int, see logging.{DEBUG,INFO,ERROR,...}: level of logger and handler
-    :param handler_class: logging.Handler instance, default is StreamHandler (/dev/stderr)
-    :param handler_kwargs: dict, keyword arguments to handler's constructor
     :param format: str, formatting style
     :param date_format: str, date style in the logs
     :return: logger instance
