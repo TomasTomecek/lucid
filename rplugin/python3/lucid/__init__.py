@@ -124,27 +124,27 @@ class Lucid(object):
     @neovim.function('LucidShowDetails', sync=True)
     def inspect(self, args):
         idx = a2i(args, 1)
-
         resource = self.app.get_resource(idx)
 
         # FIXME: make configurable
         self.v.command(":tabnew")
 
         buf = self.v.current.buffer
+        buf[:] = self.app.get_details_for(idx)
 
         buf.name = "Details of %s %s" % (resource.resource_type, resource.displayed_name)
         buf.options["swapfile"] = False
-        buf.options["buftype"] = "nofile"
+        buf.options["buftype"] = "nowrite"
         buf.options['modeline'] = False
-        buf.options['filetype'] = 'json'
 
         win = self.v.current.window
         self.width = win.width
 
         win.options["wrap"] = False
-        win.options["cursorcolumn"] = False
 
-        self.v.current.buffer[:] = self.app.get_details_for(idx)
+        # buf.options['filetype'] = 'json'
+        # apparently set command also enforces colors or what
+        self.v.command(":set ft=json")
 
     # TODO: make async
     @neovim.function('LucidRun', sync=True)
