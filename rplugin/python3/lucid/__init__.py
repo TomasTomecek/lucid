@@ -1,3 +1,7 @@
+"""
+TODO:
+ * implement status line (integrate with airline)
+"""
 import logging
 import os
 
@@ -80,13 +84,14 @@ class Lucid(object):
         win.options["concealcursor"] = "nvic"
         win.options["conceallevel"] = 3
 
-        # FIXME: figure out how to disable insert mode
+        # TODO: create new mapping to override 'i', 'a', 'A', 'c', 'C', 'I'
         # FIXME: disable horizontal navigation
         # FIXME: hide cursor, show only cursorline
 
         self.refresh()
 
     def refresh(self):
+        # TODO: insert marks for each line
         self.v.current.buffer[:] = self.app.populate_list(self.width)
 
     # this needs to be sync=True, otherwise the position is wrong
