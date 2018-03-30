@@ -90,9 +90,13 @@ class Lucid(object):
 
         self.refresh()
 
+    def _set_statusline(self):
+        self.v.command(":set statusline+=%d\ items" % len(self.v.current.buffer))
+
     def refresh(self):
         # TODO: insert marks for each line
         self.v.current.buffer[:] = self.app.populate_list(self.width)
+        self._set_statusline()
 
     # this needs to be sync=True, otherwise the position is wrong
     @neovim.function('_cui_delete', sync=True)
