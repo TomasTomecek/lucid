@@ -133,6 +133,6 @@ class Lucid(object):
         self.v.current.buffer[:] = self.app.get_details_for(idx)
 
     # TODO: make async
-    @neovim.function('_cui_init', sync=True)
+    @neovim.function('LucidRun', sync=True)
     def init(self, args):
         self.init_buffer()

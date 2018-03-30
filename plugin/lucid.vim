@@ -17,4 +17,4 @@ function! LucidInitMapping()
     nnoremap <buffer> <CR> :silent call LucidShowDetails(getpos("."))<CR>'
 endfunction
 
-nnoremap <silent> <Leader>l :call _cui_init()<CR>
+nnoremap <silent> <Leader>l :call LucidRun()<CR>
