@@ -55,6 +55,14 @@ def a2i(a, p):
     return p2i(a[0][p])
 
 
+def get_buffer_method(vim):
+    # TODO: create configuration interface
+    # FIXME: make this generic
+    buffer_method = vim.vars.get("lucid_buffer_method", ":tabnew")
+    log.debug("buffer method = %s", buffer_method)
+    return buffer_method
+
+
 @neovim.plugin
 class Lucid(object):
     def __init__(self, vim):
@@ -64,7 +72,8 @@ class Lucid(object):
         self.width = 0
 
     def init_buffer(self):
-        self.v.command(":tabnew")
+        buffer_method = get_buffer_method(self.v)
+        self.v.command(buffer_method)
         self.v.command(":call LucidInitMapping()")
 
         buf = self.v.current.buffer
@@ -118,6 +127,7 @@ class Lucid(object):
 
         resource = self.app.get_resource(idx)
 
+        # FIXME: make configurable
         self.v.command(":tabnew")
 
         buf = self.v.current.buffer
