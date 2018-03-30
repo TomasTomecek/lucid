@@ -63,14 +63,36 @@ class Resource:
 
     def to_str(self, max_size):
         """ print this resource as a pretty string, fit in the size """
+        weigths = (3, 3, 12, 7, 5)
+        one_point = int(max_size / sum(weigths))
+
+        real_size = []
+        # idx, value
+        max_id = (0, 0)
+        for cur_id, w in enumerate(weigths):
+            v = w * one_point
+            if v > max_id[1]:
+                max_id = cur_id, v
+            real_size.append(v)
+        # append remaining
+        real_size[max_id[0]] += max_size - sum(real_size)
+
         d = {
-            "name": self.displayed_name[:32],
+            "name": self.displayed_name[:real_size[2] - 1],
             "type": self.resource_type,
             "backend": self.backend,
             "changed": humanize_time(self.last_changed),
-            "status": self.status
+            "status": self.status[:real_size[3] - 1]
         }
-        template = "{backend.name:12} {type:10} {name:32} {status:16} {changed:12}"
+
+        pre_template = "{backend.name:%d}{type:%d}{name:%d}{status:%d}{changed:%d}"
+        template = pre_template % (
+            real_size[0],
+            real_size[1],
+            real_size[2],
+            real_size[3],
+            real_size[4],
+        )
         return template.format(**d)
 
 
