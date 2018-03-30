@@ -7,6 +7,7 @@ import subprocess
 from datetime import datetime
 
 import docker
+from conu import DockerImage, DockerImagePullPolicy
 
 from lucid.util import humanize_bytes, humanize_time
 
@@ -42,23 +43,19 @@ class Resource:
     """ every item in the listing has to implement this interface """
 
     def __init__(self, backend):
-        self.backend_instance = backend
+        self.backend = backend
 
     @property
     def last_changed(self):
         raise NotImplemented("last_changed property is not implemented")
 
     @property
-    def name(self):
+    def displayed_name(self):
         raise NotImplemented("name property is not implemented")
 
     @property
     def resource_type(self):
         raise NotImplemented("resource_type property is not implemented")
-
-    @property
-    def backend(self):
-        return self.backend_instance
 
     @property
     def status(self):
@@ -67,7 +64,7 @@ class Resource:
     def to_str(self, max_size):
         """ print this resource as a pretty string, fit in the size """
         d = {
-            "name": self.name[:32],
+            "name": self.displayed_name[:32],
             "type": self.resource_type,
             "backend": self.backend,
             "changed": humanize_time(self.last_changed),
@@ -92,7 +89,7 @@ class PodmanImage(Resource):
         return self.date_created
 
     @property
-    def name(self):
+    def displayed_name(self):
         try:
             return self.m["names"][0]
         except (IndexError, KeyError, TypeError):
@@ -129,9 +126,11 @@ class PodmanBackend(Backend):
         return response
 
 
-class DockerImage(Resource):
+class DockerImageResource(Resource, DockerImage):
     def __init__(self, backend, short_metadata):
-        super(DockerImage, self).__init__(backend)
+        Resource.__init__(self, backend)
+        DockerImage.__init__(self, None, pull_policy=DockerImagePullPolicy.NEVER)
+        self._id = short_metadata["Id"]
         self.s = short_metadata
         self.date_created = None
 
@@ -142,7 +141,7 @@ class DockerImage(Resource):
         return self.date_created
 
     @property
-    def name(self):
+    def displayed_name(self):
         try:
             return self.s["RepoTags"][0]
         except (IndexError, KeyError, TypeError):
@@ -169,7 +168,7 @@ class DockerBackend(Backend):
         images = self.d.images()
         result = []
         for i in images:
-            result.append(DockerImage(self, i))
+            result.append(DockerImageResource(self, i))
         return result
 
 
@@ -187,7 +186,7 @@ class OpenShiftPod(Resource):
         return self.date_changed
 
     @property
-    def name(self):
+    def displayed_name(self):
         return self.m["metadata"]["name"]
 
     @property
@@ -204,9 +203,13 @@ class OpenShiftBackend(Backend):
 
     def get_list(self):
         cmd = ["oc", "-o", "json", "get", "pods", "--all-namespaces"]
-        out = subprocess.check_output(cmd)
-        j = json.loads(out)
         response = []
-        for item in j["items"]:
-            response.append(OpenShiftPod(self, item))
+        try:
+            out = subprocess.check_output(cmd)
+        except subprocess.CalledProcessError as ex:
+            log.error("oc command failed: %s, %s", ex.stderr, ex.stdout)
+        else:
+            j = json.loads(out)
+            for item in j["items"]:
+                response.append(OpenShiftPod(self, item))
         return response

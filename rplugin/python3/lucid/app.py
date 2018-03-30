@@ -1,3 +1,4 @@
+import json
 import logging
 
 from lucid.backend import DockerBackend, OpenShiftBackend, PodmanBackend
@@ -35,3 +36,12 @@ class App:
                 i.remove()
         else:
             self.displayed_resources[start_idx].remove()
+
+    def get_details_for(self, idx):
+        log.debug("get details for %s", idx)
+        d = self.displayed_resources[idx].get_metadata()
+        return json.dumps(d, indent=2).split("\n")
+
+    def get_resource(self, idx):
+        log.debug("get details for %s", idx)
+        return self.displayed_resources[idx]

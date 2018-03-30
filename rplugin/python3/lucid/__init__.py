@@ -42,8 +42,13 @@ def set_logging(
 
 
 def p2i(p):
-    """ position to index """
+    """ position to index: vim's getpos into index """
     return p - 1
+
+
+def a2i(a, p):
+    """ args to index; vim's getpos(.) -> index """
+    return p2i(a[0][p])
 
 
 @neovim.plugin
@@ -90,8 +95,7 @@ class Lucid(object):
         log.debug("delete(args = %s)", args)
         if args:
             # delete(args=[[3, 1, 4, 2147483647]])
-            a = args[0]
-            self.s.delete(p2i(a[0]), end_idx=p2i(a[2]))
+            self.s.delete(a2i(args, 0), end_idx=a2i(args, 2))
         else:
             row = self.v.current.window.cursor[0]
             idx = p2i(row)
@@ -99,10 +103,29 @@ class Lucid(object):
         self.refresh()
 
     # this needs to be sync=True, otherwise the position is wrong
-    @neovim.function('_cui_inspect', sync=True)
+    @neovim.function('LucidShowDetails', sync=True)
     def inspect(self, args):
+        idx = a2i(args, 1)
+
+        resource = self.app.get_resource(idx)
+
         self.v.command(":tabnew")
-        # TODO: implement
+
+        buf = self.v.current.buffer
+
+        buf.name = "Details of %s %s" % (resource.resource_type, resource.displayed_name)
+        buf.options["swapfile"] = False
+        buf.options["buftype"] = "nofile"
+        buf.options['modeline'] = False
+        buf.options['filetype'] = 'json'
+
+        win = self.v.current.window
+        self.width = win.width
+
+        win.options["wrap"] = False
+        win.options["cursorcolumn"] = False
+
+        self.v.current.buffer[:] = self.app.get_details_for(idx)
 
     # TODO: make async
     @neovim.function('_cui_init', sync=True)
