@@ -1,13 +1,11 @@
-"""
-TODO:
- * implement status line (integrate with airline)
-"""
 import logging
 import os
 
 from lucid.app import App
 
 import neovim
+
+from lucid.conf import Configuration
 
 
 log = logging.getLogger("lucid")
@@ -55,25 +53,18 @@ def a2i(a, p):
     return p2i(a[0][p])
 
 
-def get_buffer_method(vim):
-    # TODO: create configuration interface
-    # FIXME: make this generic
-    buffer_method = vim.vars.get("lucid_buffer_method", ":tabnew")
-    log.debug("buffer method = %s", buffer_method)
-    return buffer_method
-
-
 @neovim.plugin
 class Lucid(object):
     def __init__(self, vim):
         set_logging()
         self.v = vim
         self.app = App()
+        self.conf = Configuration(vim.vars)
         self.width = 0
 
     def init_buffer(self):
-        buffer_method = get_buffer_method(self.v)
-        self.v.command(buffer_method)
+        window_method = self.conf.get_window_method()
+        self.v.command(window_method)
         self.v.command(":call LucidInitMapping()")
 
         buf = self.v.current.buffer
@@ -94,8 +85,6 @@ class Lucid(object):
         win.options["conceallevel"] = 3
 
         # TODO: create new mapping to override 'i', 'a', 'A', 'c', 'C', 'I'
-        # FIXME: disable horizontal navigation
-        # FIXME: hide cursor, show only cursorline
 
         self.refresh()
 
@@ -122,12 +111,11 @@ class Lucid(object):
 
     # this needs to be sync=True, otherwise the position is wrong
     @neovim.function('LucidShowDetails', sync=True)
-    def inspect(self, args):
+    def show_details(self, args):
         idx = a2i(args, 1)
         resource = self.app.get_resource(idx)
 
-        # FIXME: make configurable
-        self.v.command(":tabnew")
+        self.v.command(self.conf.get_window_details_method())
 
         buf = self.v.current.buffer
         buf[:] = self.app.get_details_for(idx)

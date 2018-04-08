@@ -5,4 +5,4 @@ syntax on
 set t_Co=256 "256
 colorscheme desert
 
-let g:lucid_buffer_method=''
+let g:lucid_window_method=''
