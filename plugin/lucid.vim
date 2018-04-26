@@ -19,6 +19,8 @@ endfunction
 
 nnoremap <silent> <Leader>l :call LucidRun()<CR>
 
+" TODO: make the highlighting minimal
+
 syntax keyword lucidBackend openshift docker k8s podman runc
 syntax keyword lucidResource container image pod service volume
 highlight link lucidBackend Keyword

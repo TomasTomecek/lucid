@@ -92,8 +92,10 @@ class Lucid(object):
         self.v.command(":set statusline+=%d\ items" % len(self.v.current.buffer))
 
     def refresh(self):
-        # TODO: insert marks for each line
-        self.v.current.buffer[:] = self.app.populate_list(self.width)
+        # TODO: insert marks for each line (is it possible to hl via marks?)
+        # TODO: implement filtering, e.g. `:LucidFilter backend=openshift resource=pod`
+        self.v.current.buffer[:] = self.app.populate_list(
+            self.width, self.conf.get_initial_query_string())
         self._set_statusline()
 
     # this needs to be sync=True, otherwise the position is wrong
@@ -102,18 +104,18 @@ class Lucid(object):
         log.debug("delete(args = %s)", args)
         if args:
             # delete(args=[[3, 1, 4, 2147483647]])
-            self.s.delete(a2i(args, 0), end_idx=a2i(args, 2))
+            self.app.delete(a2i(args, 0), end_idx=a2i(args, 2))
         else:
             row = self.v.current.window.cursor[0]
             idx = p2i(row)
-            self.s.delete(idx)
+            self.app.delete(idx)
         self.refresh()
 
     # this needs to be sync=True, otherwise the position is wrong
     @neovim.function('LucidShowDetails', sync=True)
     def show_details(self, args):
         idx = a2i(args, 1)
-        resource = self.app.get_resource(idx)
+        resource = self.app.get_displayed_item(idx)
 
         self.v.command(self.conf.get_window_details_method())
 
