@@ -1,4 +1,7 @@
 # lucid
+
+This branch is meant for testing, please don't mind it
+
 Universal terminal interface for containers.
 
 
